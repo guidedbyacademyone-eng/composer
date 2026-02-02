@@ -1,0 +1,38 @@
+name: Deploy Stage-1 (Cloud Run)
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'GCP project id'
+        required: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCLOUD_SERVICE_KEY }}
+
+      - name: Configure gcloud project
+        run: gcloud config set project ${{ github.event.inputs.project_id }}
+
+      - name: Build & push (Cloud Build)
+        run: gcloud builds submit --tag gcr.io/${{ github.event.inputs.project_id }}/composer-web:stage1
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy composer-web \
+            --image gcr.io/${{ github.event.inputs.project_id }}/composer-web:stage1 \
+            --platform managed --region=us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars COMPOSER_INVITES_MODE=google,COMPOSER_DEV_SEED_ENABLED=false,ASPNETCORE_ENVIRONMENT=Production \
+            --set-secrets COMPOSER_GOOGLE_CLIENT_ID=projects/${{ github.event.inputs.project_id }}/secrets/composer-google-client-id:latest,COMPOSER_GOOGLE_CLIENT_SECRET=projects/${{ github.event.inputs.project_id }}/secrets/composer-google-client-secret:latest
+
+      - name: Post-deploy notes
+        run: gcloud run services describe composer-web --region=us-central1 --project=${{ github.event.inputs.project_id }} --format='value(status.url)'
