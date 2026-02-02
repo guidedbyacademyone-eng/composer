@@ -1,0 +1,7 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build','-t','gcr.io/$PROJECT_ID/composer-web:stage1','ComposerWeb']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push','gcr.io/$PROJECT_ID/composer-web:stage1']
+images:
+- 'gcr.io/$PROJECT_ID/composer-web:stage1'
